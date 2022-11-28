@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rename Files</title>
+</head>
+
+<body>
+
+
+    <center style="margin-top:50px;">
+
+        <h3 style="margin-bottom: 30px">Files Rename</h3>
+
+        <div style="text-align: left;width: 30%;margin: auto;">
+            <div style="margin-top: 20px">
+
+                <label for="file">prefix : </label>
+                <input type="text" name="prefix" id="prefix">
+            </div>
+
+            <div style="margin-top: 20px">
+
+                <label for="file">excel file : </label>
+                <input type="file" name="file" id="file">
+            </div>
+
+            <div style="margin-top: 20px">
+
+                <label for="images">images file : </label>
+                <input type="file" name="images" id="images" multiple>
+            </div>
+
+            <hr>
+
+            <div id="result">
+
+            </div>
+        </div>
+    </center>
+
+    <script src="libs/jquery.js"></script>
+    <script src="libs/xlsx.full.min.js"></script>
+    <script src="libs/jszip.js"></script>
+    <script src="libs/FileSaver.js"></script>
+    <script>
+
+        var filesExcelData = [];
+        var newFiles = [];
+
+        $('#images').on('change', function () {
+            var imagesFiles = this.files;
+
+            $('#result').append("******************************************<br>");
+            $('#result').append(imagesFiles.length + " file was added to rename<br>");
+            $('#result').append("******************************************<br>");
+
+            for (let index = 0; index < imagesFiles.length; index++) {
+
+                if (filesExcelData.length <= 0) {
+                    $('#result').append("add excel file first !!" + "<br>");
+                    break;
+                }
+
+                const image = imagesFiles[index];
+                var oldName = image.name;
+                var newName;
+                var prefix = $('#prefix').val() ?? "";
+
+                for (const key in filesExcelData) {
+
+                    if (Object.hasOwnProperty.call(filesExcelData, key)) {
+                        const element = filesExcelData[key];
+
+                        if ((prefix + element["old"]) == oldName.split(".")[0]) {
+                            newName = element["new"];
+                        }
+                    }
+                }
+
+                if (!newName) {
+                    continue;
+                }
+
+                var newFile = renameFile(image, newName + "." + oldName.split(".")[1]);
+                newFiles.push(newFile);
+                $('#result').append("renaming file from : " + oldName + " to : " + newFile.name + "<br>");
+                $('#result').append("-------------------------------------------------------------------<br>");
+            }
+
+            var zip = new JSZip();
+            // var folder = zip.folder("files");
+            newFiles.forEach(newFile => {
+                zip.file(newFile.name, newFile, { binary: true });
+            });
+
+            zip.generateAsync({ type: 'blob' }).then(function (res) {
+                saveAs(res, "files.zip");
+            });
+
+        });
+
+        $('#file').on('change', function () {
+            const originalFile = this.files[0];
+
+            var reader = new FileReader();
+
+            reader.onload = function (e) {
+                dealWithExcel(e);
+            }
+
+            reader.readAsArrayBuffer(originalFile);
+        });
+
+
+        function dealWithExcel(e) {
+            var bufferArray = e.target.result;
+            var file = XLSX.read(bufferArray, { type: 'buffer' });
+            var sheetName = file.SheetNames[0];
+            var sheet = file.Sheets[sheetName];
+            var jsonExcel = XLSX.utils.sheet_to_json(sheet);
+
+            filesExcelData = jsonExcel;
+
+            $('#result').append("******************************************<br>");
+            $('#result').append("excel file added successfully<br>");
+            $('#result').append("records count : " + jsonExcel.length + "<br>");
+            $('#result').append("******************************************<br>");
+
+            //     filesExcelData = [];
+            //     jsonExcel.forEach(element => {
+            //         filesExcelData.push(JSON.stringify({old: element["old"] , new:element["new"]}));
+            //     });
+
+            //     $('#excel-data').html(filesExcelData.join("</br>"));
+        }
+
+
+        function renameFile(originalFile, newName) {
+            return new File([originalFile], newName, { type: originalFile.type, lastModified: originalFile.lastModified });
+        }
+
+
+    </script>
+</body>
+
+</html>
